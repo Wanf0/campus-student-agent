@@ -8,3 +8,4 @@ pydantic-settings>=2.2
 python-dotenv>=1.0
 python-multipart>=0.0.9
 sentence-transformers>=2.7
+pypdf>=4.0

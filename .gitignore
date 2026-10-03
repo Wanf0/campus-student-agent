@@ -9,3 +9,9 @@ venv/
 node_modules/
 dist/
 .DS_Store
+
+# Windows 下载元数据（Zone.Identifier）
+*Zone.Identifier
+
+# 真实校园文档（含个人信息，公开仓库不提交，仅供本地构建知识库）
+knowledge/*.pdf
