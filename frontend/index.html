@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>校园学生智能体</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录页 -->
+        <div v-if="!loggedIn" class="login-wrap">
+            <div class="login-card">
+                <h1>校园学生智能体</h1>
+                <p class="subtitle">探索更自然的校园信息交互方式</p>
+                <input v-model="username" placeholder="用户名" />
+                <input v-model="password" type="password" placeholder="密码" @keyup.enter="doLogin" />
+                <button @click="doLogin">登录</button>
+                <button class="ghost" @click="doRegister">注册并登录</button>
+                <p v-if="authError" class="error">{{ authError }}</p>
+            </div>
+        </div>
+
+        <!-- 聊天页 -->
+        <div v-else class="chat-wrap">
+            <aside class="sidebar">
+                <div class="brand">校园学生智能体</div>
+                <button class="new-chat" @click="newChat">+ 新建对话</button>
+                <div class="conv-list">
+                    <div v-for="c in conversations" :key="c.id"
+                         class="conv-item" :class="{active: c.id === currentId}"
+                         @click="openConversation(c.id)">
+                        {{ c.title || '未命名对话' }}
+                    </div>
+                </div>
+                <div class="user-box">
+                    <span>{{ username }}</span>
+                    <button @click="logout">退出</button>
+                </div>
+            </aside>
+
+            <main class="chat-main">
+                <div class="messages" ref="msgBox">
+                    <div v-for="(m, idx) in messages" :key="idx"
+                         class="msg" :class="m.role">
+                        <div class="bubble">{{ m.content }}</div>
+                        <div v-if="m.intent" class="intent-badge">意图：{{ intentLabel(m.intent) }}</div>
+                    </div>
+                    <div v-if="loading" class="msg assistant">
+                        <div class="bubble typing">思考中…</div>
+                    </div>
+                </div>
+                <div class="input-bar">
+                    <input v-model="draft" placeholder="输入你的问题，例如：图书馆借书能借几本？"
+                           @keyup.enter="send" :disabled="loading" />
+                    <button @click="send" :disabled="loading">发送</button>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -8,12 +8,32 @@ from ..models import Conversation, Message
 from ..schemas import ChatRequest, ChatResponse
 from ..services import agent_runner
 
-router = APIRouter(prefix="/chat", tags=["对话"])
+router = APIRouter(tags=["对话"])
 
 HISTORY_LIMIT = 10
 
 
-@router.post("", response_model=ChatResponse)
+@router.get("/conversations")
+def list_conversations(user_id: int | None = None, db: Session = Depends(get_db)):
+    q = db.query(Conversation).order_by(Conversation.updated_at.desc())
+    if user_id is not None:
+        q = q.filter(Conversation.user_id == user_id)
+    convs = q.all()
+    return [{"id": c.id, "title": c.title, "user_id": c.user_id} for c in convs]
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
+    msgs = (
+        db.query(Message)
+        .filter(Message.conversation_id == conversation_id)
+        .order_by(Message.id.asc())
+        .all()
+    )
+    return [{"role": m.role, "content": m.content} for m in msgs]
+
+
+@router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db)):
     conversation_id = req.conversation_id
     history: list[dict] = []

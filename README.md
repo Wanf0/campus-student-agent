@@ -55,7 +55,22 @@ cp .env.example .env        # 填入你的 DeepSeek API Key
 uvicorn app.main:app --reload
 ```
 
-启动后访问 `http://127.0.0.1:8000/docs` 查看接口文档。
+启动后：
+
+- 在浏览器访问 `http://127.0.0.1:8000/` 使用对话界面（Vue3）
+- 访问 `http://127.0.0.1:8000/docs` 查看接口文档
+
+### 导入知识库
+
+将校园文档（`.txt` 或 `.pdf`）放入 `knowledge/` 目录，然后：
+
+```bash
+cd backend
+source .venv/bin/activate
+python seed.py
+```
+
+> 注：`knowledge/` 下的真实校园 PDF（含个人信息）已被 `.gitignore` 排除，仅用于本地构建知识库，不会提交到仓库。
 
 ## 环境变量
 

@@ -1,0 +1,40 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #333; }
+
+/* 登录页 */
+.login-wrap { display: flex; align-items: center; justify-content: center; height: 100vh; }
+.login-card { width: 360px; background: #fff; padding: 40px 32px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: 14px; }
+.login-card h1 { font-size: 22px; text-align: center; }
+.login-card .subtitle { text-align: center; color: #999; font-size: 13px; margin-bottom: 8px; }
+.login-card input { padding: 12px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 15px; }
+.login-card button { padding: 12px; border: none; border-radius: 8px; background: #4f7cff; color: #fff; font-size: 15px; cursor: pointer; }
+.login-card button.ghost { background: #fff; color: #4f7cff; border: 1px solid #4f7cff; }
+.login-card .error { color: #e54d4d; font-size: 13px; text-align: center; }
+
+/* 聊天页 */
+.chat-wrap { display: flex; height: 100vh; }
+.sidebar { width: 240px; background: #2b3040; color: #ddd; display: flex; flex-direction: column; }
+.brand { padding: 20px 16px; font-size: 16px; font-weight: 600; color: #fff; border-bottom: 1px solid #3a4050; }
+.new-chat { margin: 14px; padding: 10px; background: #4f7cff; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+.conv-list { flex: 1; overflow-y: auto; padding: 0 8px; }
+.conv-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-item:hover { background: #3a4050; }
+.conv-item.active { background: #4f7cff; color: #fff; }
+.user-box { padding: 14px; border-top: 1px solid #3a4050; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.user-box button { background: none; border: none; color: #9aa; cursor: pointer; }
+
+.chat-main { flex: 1; display: flex; flex-direction: column; }
+.messages { flex: 1; overflow-y: auto; padding: 24px; }
+.msg { margin-bottom: 16px; display: flex; flex-direction: column; }
+.msg.user { align-items: flex-end; }
+.msg.assistant { align-items: flex-start; }
+.bubble { max-width: 70%; padding: 12px 16px; border-radius: 12px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; }
+.msg.user .bubble { background: #4f7cff; color: #fff; border-bottom-right-radius: 4px; }
+.msg.assistant .bubble { background: #fff; border: 1px solid #eee; border-bottom-left-radius: 4px; }
+.bubble.typing { color: #999; }
+.intent-badge { margin-top: 4px; font-size: 12px; color: #999; }
+
+.input-bar { display: flex; gap: 12px; padding: 16px 24px; border-top: 1px solid #eee; background: #fff; }
+.input-bar input { flex: 1; padding: 12px 16px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 15px; }
+.input-bar button { padding: 0 24px; border: none; border-radius: 8px; background: #4f7cff; color: #fff; font-size: 15px; cursor: pointer; }
+.input-bar button:disabled { opacity: .5; cursor: not-allowed; }
