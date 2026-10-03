@@ -10,6 +10,7 @@ from pypdf import PdfReader
 
 from app.db import Base, engine, SessionLocal
 from app.knowledge import ingest_document
+from app.models import Document
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 
@@ -29,6 +30,9 @@ def main():
         return
     for f in files:
         title = f.stem
+        if db.query(Document).filter(Document.title == title).first():
+            print(f"跳过（已存在）：{title}")
+            continue
         try:
             content = read_pdf(f) if f.suffix.lower() == ".pdf" else f.read_text(encoding="utf-8")
         except Exception as e:

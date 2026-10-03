@@ -26,3 +26,10 @@ def query(query_embedding: list[float], n_results: int = 5) -> dict:
     col = get_collection()
     res = col.query(query_embeddings=[query_embedding], n_results=n_results)
     return res
+
+
+def delete_chunks(ids: list[str]):
+    if not ids:
+        return
+    col = get_collection()
+    col.delete(ids=ids)
