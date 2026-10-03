@@ -10,10 +10,18 @@ SYSTEM_PROMPTS = {
 }
 
 
-def handle(intent: str, message: str, history: list[dict] | None = None) -> str:
+def prepare(intent: str, message: str, history: list[dict] | None = None) -> list[dict]:
     system = SYSTEM_PROMPTS.get(intent, SYSTEM_PROMPTS["study"])
     messages = [{"role": "system", "content": system}]
     if history:
         messages.extend(history)
     messages.append({"role": "user", "content": message})
-    return llm.chat(messages)
+    return messages
+
+
+def handle(intent: str, message: str, history: list[dict] | None = None) -> str:
+    return llm.chat(prepare(intent, message, history))
+
+
+def handle_stream(intent: str, message: str, history: list[dict] | None = None):
+    yield from llm.chat_stream(prepare(intent, message, history))

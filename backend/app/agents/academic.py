@@ -8,7 +8,8 @@ from ..services import llm, tools
 SYSTEM_PROMPT = "你是教务信息查询助手。当用户查询课表、成绩或考试安排时，请调用相应工具获取数据，再整理为自然语言回答。"
 
 
-def handle(message: str, history: list[dict] | None = None) -> str:
+def prepare(message: str, history: list[dict] | None = None) -> list[dict]:
+    """执行工具调用流程，返回用于最终生成的 messages。"""
     client = llm.get_client()
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     if history:
@@ -32,11 +33,18 @@ def handle(message: str, history: list[dict] | None = None) -> str:
                 args = {}
             result = tools.call_tool(tc.function.name, args)
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result})
+    return messages
 
-        final = client.chat.completions.create(
-            model=settings.deepseek_model,
-            messages=messages,
-        )
-        return final.choices[0].message.content or ""
 
-    return msg.content or ""
+def handle(message: str, history: list[dict] | None = None) -> str:
+    messages = prepare(message, history)
+    final = llm.get_client().chat.completions.create(
+        model=settings.deepseek_model,
+        messages=messages,
+    )
+    return final.choices[0].message.content or ""
+
+
+def handle_stream(message: str, history: list[dict] | None = None):
+    messages = prepare(message, history)
+    yield from llm.chat_stream(messages)

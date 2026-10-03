@@ -23,3 +23,19 @@ def chat(messages: list[dict], temperature: float = 0.7) -> str:
         temperature=temperature,
     )
     return resp.choices[0].message.content or ""
+
+
+def chat_stream(messages: list[dict], temperature: float = 0.7):
+    """流式返回生成内容（逐段 yield）。"""
+    client = get_client()
+    stream = client.chat.completions.create(
+        model=settings.deepseek_model,
+        messages=messages,
+        temperature=temperature,
+        stream=True,
+    )
+    for chunk in stream:
+        if chunk.choices:
+            delta = chunk.choices[0].delta
+            if delta and delta.content:
+                yield delta.content

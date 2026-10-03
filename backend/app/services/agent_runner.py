@@ -1,18 +1,28 @@
-"""多智能体编排：路由 → 领域智能体。"""
+"""多智能体编排：同步走 LangGraph 工作流，流式直接分发。"""
 
+from .. import workflow
 from ..agents import router, qa, academic, generic
 
 
-def run(message: str, history: list[dict] | None = None) -> tuple[str, str]:
-    intent = router.route(message)
+def _stream_dispatch(intent: str, message: str, history: list[dict] | None = None):
     if intent == "academic":
-        reply = academic.handle(message, history)
+        yield from academic.handle_stream(message, history)
     elif intent in ("qa", "life"):
-        # 校园事实性问答（制度/通知/图书馆/食堂等）统一走 RAG
-        reply = qa.handle(message, history)
+        yield from qa.handle_stream(message, history)
     elif intent in ("study", "psychology", "planning"):
-        reply = generic.handle(intent, message, history)
+        yield from generic.handle_stream(intent, message, history)
     else:
-        reply = qa.handle(message, history)
+        yield from qa.handle_stream(message, history)
+
+
+def run(message: str, history: list[dict] | None = None) -> tuple[str, str]:
+    """同步执行：LangGraph 工作流编排。"""
+    return workflow.run(message, history)
+
+
+def run_stream(message: str, history: list[dict] | None = None) -> tuple[str, object]:
+    """返回 (intent, token 生成器)。"""
+    intent = router.route(message)
+    if intent not in ("academic", "qa", "life", "study", "psychology", "planning"):
         intent = "qa"
-    return reply, intent
+    return intent, _stream_dispatch(intent, message, history)

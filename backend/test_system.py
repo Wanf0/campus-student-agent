@@ -115,6 +115,29 @@ def main():
     RESULTS.append(("TC-16", "意图识别(学习规划)", passed, f"intent={intent}"))
     print(f"{'PASS' if passed else 'FAIL'}  TC-16 意图识别(学习规划): intent={intent}")
 
+    # ---- 流式接口 ----
+    try:
+        resp = client.post("/chat/stream", json={"message": "国家奖学金要什么条件？", "user_id": 1})
+        body = resp.text
+        ok = resp.status_code == 200 and '"intent"' in body and '"token"' in body
+        RESULTS.append(("TC-17", "流式接口(SSE)", ok, f"[{resp.status_code}] 含intent/token事件={ok}"))
+        print(f"{'PASS' if ok else 'FAIL'}  TC-17 流式接口: [{resp.status_code}]")
+    except Exception as e:
+        RESULTS.append(("TC-17", "流式接口", False, f"异常: {e}"))
+        print(f"FAIL  TC-17 流式接口: {e}")
+
+    # ---- 文件上传 ----
+    try:
+        resp = client.post("/admin/upload",
+                           files={"file": ("上传测试.txt", "这是上传测试的文档内容。".encode("utf-8"), "text/plain")})
+        body = resp.json()
+        ok = resp.status_code == 200 and body.get("id")
+        RESULTS.append(("TC-18", "文件上传", ok, f"[{resp.status_code}] {body}"))
+        print(f"{'PASS' if ok else 'FAIL'}  TC-18 文件上传: [{resp.status_code}] {body}")
+    except Exception as e:
+        RESULTS.append(("TC-18", "文件上传", False, f"异常: {e}"))
+        print(f"FAIL  TC-18 文件上传: {e}")
+
     # ---- 汇总 ----
     print("=" * 70)
     passed = sum(1 for _, _, p, _ in RESULTS if p)

@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>校园学生智能体</title>
     <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github.min.css" />
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/common.min.js"></script>
 </head>
 <body>
     <div id="app">
         <!-- 登录页 -->
         <div v-if="!loggedIn" class="login-wrap">
             <div class="login-card">
+                <div class="logo">🎓</div>
                 <h1>校园学生智能体</h1>
                 <p class="subtitle">探索更自然的校园信息交互方式</p>
                 <input v-model="username" placeholder="用户名" />
@@ -25,8 +30,9 @@
         <!-- 聊天页 -->
         <div v-else class="chat-wrap">
             <aside class="sidebar">
-                <div class="brand">校园学生智能体</div>
-                <button class="new-chat" @click="newChat">+ 新建对话</button>
+                <div class="brand">🎓 校园学生智能体</div>
+                <button class="new-chat" @click="newChat">＋ 新建对话</button>
+                <button class="new-chat kb" @click="openKnowledge">📚 知识库管理</button>
                 <div class="conv-list">
                     <div v-for="c in conversations" :key="c.id"
                          class="conv-item" :class="{active: c.id === currentId}"
@@ -41,20 +47,45 @@
             </aside>
 
             <main class="chat-main">
-                <div class="messages" ref="msgBox">
-                    <div v-for="(m, idx) in messages" :key="idx"
-                         class="msg" :class="m.role">
-                        <div class="bubble">{{ m.content }}</div>
-                        <div v-if="m.intent" class="intent-badge">意图：{{ intentLabel(m.intent) }}</div>
+                <!-- 对话视图 -->
+                <div v-if="view === 'chat'" class="messages" ref="msgBox">
+                    <div v-for="(m, idx) in messages" :key="idx" class="msg" :class="m.role">
+                        <div class="avatar" :class="m.role">{{ m.role === 'user' ? '我' : 'AI' }}</div>
+                        <div class="msg-body">
+                            <div v-if="m.role === 'assistant'" class="bubble md" v-html="bubbleHtml(m)"></div>
+                            <div v-else class="bubble">{{ m.content }}</div>
+                            <div v-if="m.intent" class="intent-badge">{{ intentLabel(m.intent) }}</div>
+                        </div>
                     </div>
                     <div v-if="loading" class="msg assistant">
-                        <div class="bubble typing">思考中…</div>
+                        <div class="avatar assistant">AI</div>
+                        <div class="msg-body"><div class="bubble typing">思考中…</div></div>
                     </div>
                 </div>
-                <div class="input-bar">
+                <div v-if="view === 'chat'" class="input-bar">
                     <input v-model="draft" placeholder="输入你的问题，例如：图书馆借书能借几本？"
                            @keyup.enter="send" :disabled="loading" />
                     <button @click="send" :disabled="loading">发送</button>
+                </div>
+
+                <!-- 知识库视图 -->
+                <div v-if="view === 'knowledge'" class="kb-view">
+                    <div class="kb-head">
+                        <h2>知识库管理</h2>
+                        <label class="upload-btn">
+                            上传文档
+                            <input type="file" accept=".txt,.pdf" @change="onUpload" hidden />
+                        </label>
+                    </div>
+                    <p class="kb-hint">上传的文档将自动清洗、切分并向量化，供智能体检索使用。</p>
+                    <div class="kb-list">
+                        <div v-for="d in docs" :key="d.id" class="kb-item">
+                            <span class="kb-title">{{ d.title }}</span>
+                            <span class="kb-cat">{{ d.category }}</span>
+                            <button class="kb-del" @click="onDelete(d)">删除</button>
+                        </div>
+                        <div v-if="!docs.length" class="kb-empty">暂无文档</div>
+                    </div>
                 </div>
             </main>
         </div>

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./campus_agent.db"
     embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    rerank_model: str = "BAAI/bge-reranker-base"
     chroma_dir: str = "./chroma_data"
 
     host: str = "127.0.0.1"

@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from io import BytesIO
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -8,6 +11,26 @@ from ..schemas import DocumentCreate, DocumentResponse
 from ..services import rag
 
 router = APIRouter(prefix="/admin", tags=["管理"])
+
+
+def _extract_upload(filename: str, data: bytes) -> str:
+    if filename.lower().endswith(".pdf"):
+        reader = PdfReader(BytesIO(data))
+        return "\n".join(p.extract_text() or "" for p in reader.pages).strip()
+    if filename.lower().endswith(".txt"):
+        return data.decode("utf-8", errors="ignore").strip()
+    raise HTTPException(status_code=400, detail="仅支持 .txt / .pdf 文件")
+
+
+@router.post("/upload")
+async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    data = await file.read()
+    text = _extract_upload(file.filename or "", data)
+    if not text:
+        raise HTTPException(status_code=400, detail="文件无文字内容（可能是扫描件）")
+    title = (file.filename or "未命名").rsplit(".", 1)[0]
+    doc_id = ingest_document(db, title, "校园资料", file.filename, text)
+    return {"id": doc_id, "title": title}
 
 
 @router.post("/documents", response_model=DocumentResponse)
