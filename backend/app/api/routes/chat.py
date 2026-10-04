@@ -1,6 +1,5 @@
 import json
 import uuid
-import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
@@ -11,7 +10,6 @@ from app.api.schemas import ChatRequest, ChatResponse, Citation
 from app.application import orchestrator
 from app.domain.agent import CampusAgent
 from app.domain.models import Conversation, Message
-from app.domain import memory
 from app.infrastructure import observability
 from app.infrastructure.db import get_db, SessionLocal
 
@@ -21,8 +19,7 @@ _agent = CampusAgent()
 
 
 def _resolve(db: Session, req: ChatRequest):
-    conversation_id, history = orchestrator.resolve_conversation(db, req.user_id, req.message, req.conversation_id)
-    return conversation_id, history
+    return orchestrator.resolve_conversation(db, req.user_id, req.message, req.conversation_id)
 
 
 @router.get("/conversations")
@@ -51,17 +48,21 @@ def chat_stream(req: ChatRequest, db: Session = Depends(get_db)):
     conversation_id, history = _resolve(db, req)
     run_id = uuid.uuid4().hex
     observability.new_run(db, run_id, req.message, req.user_id)
-    intent, evidence, citations, gen = _agent.run_stream(req.message, history)
 
     def event_stream():
-        yield _sse({"intent": intent, "conversation_id": conversation_id, "run_id": run_id})
         full = ""
         try:
-            for token in gen:
-                full += token
-                yield _sse({"token": token})
-        except Exception as e:
-            yield _sse({"error": str(e)})
+            for event in _agent.run_stream(req.message, history):
+                event["run_id"] = run_id
+                if event["event"] == "start":
+                    event["conversation_id"] = conversation_id
+                if event["event"] == "token":
+                    full += event.get("content", "")
+                yield _sse(event)
+        except Exception:
+            yield _sse({"event": "error", "message": "生成过程中出错，请重试", "retryable": True, "run_id": run_id})
+            yield _sse({"event": "done", "citations": [], "conversation_id": conversation_id, "run_id": run_id})
+
         s = SessionLocal()
         try:
             s.add(Message(conversation_id=conversation_id, role="user", content=req.message))
@@ -72,8 +73,6 @@ def chat_stream(req: ChatRequest, db: Session = Depends(get_db)):
             s.commit()
         finally:
             s.close()
-        yield _sse({"done": True, "conversation_id": conversation_id,
-                    "citations": [c.model_dump() for c in citations]})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

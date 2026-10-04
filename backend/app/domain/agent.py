@@ -1,4 +1,9 @@
-"""单一 Campus Agent：确定性路由 + 工具调用 + agentic RAG 自校正。"""
+"""单一 Campus Agent：确定性路由 + 工具调用 + agentic RAG 自校正。
+
+流式入口 run_stream 以事件 dict 生成器形式暴露完整执行轨迹
+（start/status/evidence/tool_call/clarification/token/error/done），
+run_id 由上层 chat.py 注入并贯穿整个请求。
+"""
 
 import json
 
@@ -27,65 +32,100 @@ GENERIC_PROMPTS = {
 }
 
 TOOL_PROMPT = (
-    "你是教务信息查询助手。当用户查询课表、成绩、考试、通知或校历时，"
+    "你是教务信息查询助手。当用户查询课表、成绩或考试安排时，"
     "请调用相应工具获取数据，再整理为自然语言回答。"
 )
+
+# 确定性工具选择：根据关键词强制指定工具，避免 LLM 自行判断导致澄清路径不稳定
+ACADEMIC_TOOL_KEYWORDS = {
+    "query_timetable": ["课表", "课程", "上课"],
+    "query_score": ["成绩", "绩点", "查分"],
+    "query_exam": ["考试", "考场"],
+}
+
+
+def _select_academic_tool(query: str) -> str | None:
+    for tool, kws in ACADEMIC_TOOL_KEYWORDS.items():
+        if any(k in query for k in kws):
+            return tool
+    return None
 
 
 class CampusAgent:
     def __init__(self):
         self.registry = build_registry()
 
-    # ---- 入口 ----
+    # ---- 同步入口（供 /chat 与评测） ----
 
     def run(self, query: str, history: list[dict] | None = None) -> AgentOutput:
         intent = router.route(query)
-        messages, evidence, citations = self._prepare(intent, query, history)
-        answer = llm.chat(messages)
+        answer = ""
+        evidence: list[Evidence] = []
+        citations: list[Citation] = []
+        for ev in self.run_stream(query, history):
+            e = ev["event"]
+            if e == "token":
+                answer += ev.get("content", "")
+            elif e == "evidence":
+                evidence = [Evidence(**it) for it in ev.get("items", [])]
+            elif e == "done":
+                citations = [Citation(**c) for c in ev.get("citations", [])]
         return AgentOutput(answer=answer, evidence=evidence, citations=citations, intent=intent)
+
+    # ---- 流式入口：yield 事件 dict ----
 
     def run_stream(self, query: str, history: list[dict] | None = None):
         intent = router.route(query)
-        messages, evidence, citations = self._prepare(intent, query, history)
-        return intent, evidence, citations, llm.chat_stream(messages)
-
-    # ---- 准备最终生成 ----
-
-    def _prepare(self, intent: str, query: str, history: list[dict] | None):
+        yield {"event": "start", "intent": intent}
         history = history or []
         if intent == "qa":
-            return self._prepare_rag(query, history)
-        if intent == "academic":
-            return self._prepare_tool(query, history), [], []
-        return self._prepare_generic(intent, query, history), [], []
+            yield from self._stream_rag(query, history)
+        elif intent == "academic":
+            yield from self._stream_tool(query, history)
+        else:
+            yield from self._stream_generic(intent, query, history)
 
-    # ---- agentic RAG（检索 → 分级 → 改写 → 生成） ----
+    # ---- agentic RAG ----
 
-    def _prepare_rag(self, query: str, history: list[dict]) -> tuple[list[dict], list[Evidence], list[Citation]]:
+    def _stream_rag(self, query: str, history: list[dict]):
+        yield {"event": "status", "phase": "retrieving"}
         evidence = search_knowledge(query)
-
         for _ in range(settings.agent_max_rewrite_retries):
             if self._relevant(evidence):
                 break
+            yield {"event": "status", "phase": "rewriting"}
             query = self._rewrite(query, history)
             evidence = search_knowledge(query)
 
-        # 只保留超过相关性阈值的证据，保证答案 grounded
         evidence = [e for e in evidence if (e.rerank_score or 0) >= settings.rerank_score_threshold]
+        yield {"event": "evidence", "items": [e.model_dump() for e in evidence]}
         citations = grounding.to_citations(evidence)
-        context = grounding.build_grounded_context(evidence)
+        yield {"event": "status", "phase": "generating"}
 
+        messages = self._rag_messages(evidence, query, history)
+        for token in llm.chat_stream(messages):
+            yield {"event": "token", "content": token}
+        yield {"event": "done", "citations": [c.model_dump() for c in citations]}
+
+    def _rag_messages(self, evidence: list[Evidence], query: str, history: list[dict]) -> list[dict]:
+        context = grounding.build_grounded_context(evidence)
         system = GROUNDED_PROMPT + ("\n\n可用资料：\n" + context if evidence else "\n\n（无相关检索结果）")
         messages = [{"role": "system", "content": system}]
         messages.extend(history)
         messages.append({"role": "user", "content": query})
-        return messages, evidence, citations
+        return messages
 
     def _relevant(self, evidence: list[Evidence]) -> bool:
         if not evidence:
             return False
         best = max((e.rerank_score or 0) for e in evidence)
         return best >= settings.rerank_score_threshold
+
+    def _tool_choice(self, query: str):
+        tool = _select_academic_tool(query)
+        if tool:
+            return {"type": "function", "function": {"name": tool}}
+        return "auto"
 
     def _rewrite(self, query: str, history: list[dict]) -> str:
         prompt = (
@@ -102,7 +142,8 @@ class CampusAgent:
 
     # ---- 工具调用 ----
 
-    def _prepare_tool(self, query: str, history: list[dict]) -> list[dict]:
+    def _stream_tool(self, query: str, history: list[dict]):
+        yield {"event": "status", "phase": "tool_calling"}
         client = llm.get_client()
         messages = [{"role": "system", "content": TOOL_PROMPT}]
         messages.extend(history)
@@ -112,33 +153,58 @@ class CampusAgent:
             model=settings.deepseek_model,
             messages=messages,
             tools=self.registry.schemas(),
-            tool_choice="auto",
+            tool_choice=self._tool_choice(query),
         )
         msg = resp.choices[0].message
-        if msg.tool_calls:
-            messages.append(msg)
-            for tc in msg.tool_calls:
-                try:
-                    args = json.loads(tc.function.arguments or "{}")
-                except json.JSONDecodeError:
-                    args = {}
-                result = self.registry.call(tc.function.name, args)
-                content = self._format_tool_result(result)
-                messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
-        return messages
 
-    def _format_tool_result(self, result) -> str:
-        if result.status == "missing_params":
-            return "缺少参数：" + "、".join(result.missing_params) + "，请向用户询问这些信息。"
-        if result.status == "error":
-            return "查询失败：" + (result.error_message or "未知错误")
-        return str(result.data)
+        if not msg.tool_calls:
+            yield {"event": "status", "phase": "generating"}
+            messages.append(msg)
+            for token in llm.chat_stream(messages):
+                yield {"event": "token", "content": token}
+            yield {"event": "done", "citations": []}
+            return
+
+        messages.append(msg)
+        for tc in msg.tool_calls:
+            yield {"event": "tool_call", "tool": tc.function.name, "status": "start"}
+            try:
+                args = json.loads(tc.function.arguments or "{}")
+            except json.JSONDecodeError:
+                args = {}
+            result = self.registry.call(tc.function.name, args)
+
+            if result.status == "missing_params":
+                yield {"event": "tool_call", "tool": tc.function.name, "status": "missing_params",
+                       "missing": result.missing_params}
+                question = "需要补充参数：" + "、".join(result.missing_params) + "（例如 A班 或 B班）"
+                yield {"event": "clarification", "missing": result.missing_params, "question": question}
+                yield {"event": "token", "content": question}
+                yield {"event": "done", "citations": []}
+                return
+
+            if result.status == "error":
+                yield {"event": "tool_call", "tool": tc.function.name, "status": "error"}
+                yield {"event": "error", "message": "查询失败，请稍后重试", "retryable": True}
+                yield {"event": "done", "citations": []}
+                return
+
+            yield {"event": "tool_call", "tool": tc.function.name, "status": "ok"}
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": str(result.data)})
+
+        yield {"event": "status", "phase": "generating"}
+        for token in llm.chat_stream(messages):
+            yield {"event": "token", "content": token}
+        yield {"event": "done", "citations": []}
 
     # ---- 开放对话 ----
 
-    def _prepare_generic(self, intent: str, query: str, history: list[dict]) -> list[dict]:
+    def _stream_generic(self, intent: str, query: str, history: list[dict]):
+        yield {"event": "status", "phase": "generating"}
         system = GENERIC_PROMPTS.get(intent, GENERIC_PROMPTS["study"])
         messages = [{"role": "system", "content": system}]
         messages.extend(history)
         messages.append({"role": "user", "content": query})
-        return messages
+        for token in llm.chat_stream(messages):
+            yield {"event": "token", "content": token}
+        yield {"event": "done", "citations": []}

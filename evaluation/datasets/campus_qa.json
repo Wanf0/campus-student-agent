@@ -23,12 +23,16 @@
    "expected_intent": "qa", "expected_keywords": ["班级评议", "学院审核", "公示"], "expected_sources": ["奖学金评定办法"],
    "answerable_from_corpus": "A", "gold_documents": ["奖学金评定办法"], "expected_evidence_count": 1},
 
-  {"id": "struct_01", "category": "结构化查询", "query": "查一下我的课表",
+  {"id": "struct_01", "category": "结构化查询", "query": "查A班的课表",
    "expected_intent": "academic", "expected_keywords": ["软件工程"], "expected_sources": [],
    "answerable_from_corpus": "tool", "gold_documents": [], "expected_evidence_count": 0},
 
   {"id": "struct_02", "category": "结构化查询", "query": "我的成绩是多少？",
    "expected_intent": "academic", "expected_keywords": ["软件工程", "92"], "expected_sources": [],
+   "answerable_from_corpus": "tool", "gold_documents": [], "expected_evidence_count": 0},
+
+  {"id": "struct_03", "category": "结构化查询", "query": "查一下我的课表",
+   "expected_intent": "academic", "expected_keywords": [], "expected_sources": [],
    "answerable_from_corpus": "tool", "gold_documents": [], "expected_evidence_count": 0},
 
   {"id": "multitool_01", "category": "多工具", "query": "查一下校历",

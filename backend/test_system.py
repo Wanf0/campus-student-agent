@@ -68,7 +68,7 @@ def main():
 
     # ---- 教务信息查询（工具调用）----
     check("TC-08", "课表查询", "POST", "/chat",
-          {"message": "查一下我的课表", "user_id": 1}, contains=["软件工程"])
+          {"message": "查A班的课表", "user_id": 1}, contains=["软件工程"])
     check("TC-09", "成绩查询", "POST", "/chat",
           {"message": "我的成绩是多少？", "user_id": 1}, contains=["软件工程"])
 
