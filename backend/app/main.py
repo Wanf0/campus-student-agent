@@ -11,7 +11,8 @@ from app.infrastructure.db import engine
 
 Base.metadata.create_all(bind=engine)
 
-FRONTEND_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend"
+FRONTEND_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend"
+DIST_DIR = FRONTEND_ROOT / "dist"
 
 app = FastAPI(title="校园学生智能体", version="0.4.0")
 
@@ -19,12 +20,15 @@ app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
 
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+# 生产模式：服务 Vite 构建产物（frontend/dist）；开发模式用 `npm run dev` 代理
+if (DIST_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
 
 
 @app.get("/")
 def index():
-    return FileResponse(FRONTEND_DIR / "index.html")
+    index_file = DIST_DIR / "index.html" if (DIST_DIR / "index.html").exists() else FRONTEND_ROOT / "index.html"
+    return FileResponse(index_file)
 
 
 @app.get("/health")
