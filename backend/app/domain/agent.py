@@ -53,7 +53,7 @@ class CampusAgent:
 
     def _prepare(self, intent: str, query: str, history: list[dict] | None):
         history = history or []
-        if intent in ("qa", "life"):
+        if intent == "qa":
             return self._prepare_rag(query, history)
         if intent == "academic":
             return self._prepare_tool(query, history), [], []

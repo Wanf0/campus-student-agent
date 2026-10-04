@@ -1,0 +1,36 @@
+[
+  {"id": "simple_01", "category": "简单知识", "query": "图书馆一次能借几本书？",
+   "expected_intent": "qa", "expected_keywords": ["10", "十册"], "expected_sources": ["图书馆借阅规则"]},
+  {"id": "simple_02", "category": "简单知识", "query": "校园卡丢了怎么办？",
+   "expected_intent": "qa", "expected_keywords": ["挂失", "补卡"], "expected_sources": ["校园卡补办流程"]},
+  {"id": "simple_03", "category": "简单知识", "query": "国家奖学金每人每年多少钱？",
+   "expected_intent": "qa", "expected_keywords": ["8000"], "expected_sources": ["奖学金评定办法"]},
+
+  {"id": "complex_01", "category": "复杂检索", "query": "国家奖学金和校级一等奖学金哪个要求更高？",
+   "expected_intent": "qa", "expected_keywords": ["10%", "20%"], "expected_sources": ["奖学金评定办法"]},
+  {"id": "complex_02", "category": "复杂检索", "query": "图书馆借书逾期会有什么后果？",
+   "expected_intent": "qa", "expected_keywords": ["逾期", "0.1"], "expected_sources": ["图书馆借阅规则"]},
+  {"id": "complex_03", "category": "复杂检索", "query": "申请奖学金需要经过哪些环节？",
+   "expected_intent": "qa", "expected_keywords": ["班级评议", "学院审核", "公示"], "expected_sources": ["奖学金评定办法"]},
+
+  {"id": "struct_01", "category": "结构化查询", "query": "查一下我的课表",
+   "expected_intent": "academic", "expected_keywords": ["软件工程"], "expected_sources": []},
+  {"id": "struct_02", "category": "结构化查询", "query": "我的成绩是多少？",
+   "expected_intent": "academic", "expected_keywords": ["软件工程", "92"], "expected_sources": []},
+
+  {"id": "multitool_01", "category": "多工具", "query": "查一下校历",
+   "expected_intent": "qa", "expected_keywords": ["开学", "假期"], "expected_sources": []},
+  {"id": "multitool_02", "category": "多工具", "query": "最近有什么校园通知？",
+   "expected_intent": "qa", "expected_keywords": ["通知"], "expected_sources": []},
+
+  {"id": "ambiguous_01", "category": "歧义", "query": "补考什么时候？",
+   "expected_intent": "qa", "expected_keywords": [], "expected_sources": []},
+
+  {"id": "temporal_01", "category": "时效性", "query": "今年奖学金申请条件是什么？",
+   "expected_intent": "qa", "expected_keywords": ["奖学金", "排名"], "expected_sources": ["奖学金评定办法"]},
+  {"id": "temporal_02", "category": "时效性", "query": "国庆假期是怎么安排的？",
+   "expected_intent": "qa", "expected_keywords": ["10月", "7天"], "expected_sources": ["2026年国庆假期安全提醒"]},
+
+  {"id": "oov_01", "category": "知识库外", "query": "今天股市大盘怎么样？",
+   "expected_intent": "qa", "expected_keywords": [], "expected_sources": []}
+]

@@ -104,8 +104,8 @@ def main():
     # ---- 意图识别 ----
     r = client.post("/chat", json={"message": "食堂几点开门？", "user_id": 1}).json()
     intent = r.get("intent")
-    passed = intent == "life"
-    RESULTS.append(("TC-14", "意图识别(生活服务)", passed, f"intent={intent}"))
+    passed = intent == "qa"
+    RESULTS.append(("TC-14", "意图识别(知识问答)", passed, f"intent={intent}"))
     print(f"{'PASS' if passed else 'FAIL'}  TC-14 意图识别: intent={intent}")
 
     # ---- 规划意图（验证路由修复）----
