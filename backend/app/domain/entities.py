@@ -46,3 +46,6 @@ class AgentOutput(BaseModel):
     evidence: list[Evidence] = []
     citations: list[Citation] = []
     intent: str = "general"
+    clarification: dict | None = None
+    error: str | None = None
+    retryable: bool = False

@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 from datetime import datetime
 
@@ -49,19 +50,37 @@ def chat_stream(req: ChatRequest, db: Session = Depends(get_db)):
     run_id = uuid.uuid4().hex
     observability.new_run(db, run_id, req.message, req.user_id)
 
+    pending = orchestrator.resolve_pending(conversation_id, req.message)
+
     def event_stream():
         full = ""
+        start = time.perf_counter()
+        clarification_seen = False
         try:
-            for event in _agent.run_stream(req.message, history):
+            for event in _agent.run_stream(req.message, history, clarification=pending):
                 event["run_id"] = run_id
                 if event["event"] == "start":
                     event["conversation_id"] = conversation_id
                 if event["event"] == "token":
                     full += event.get("content", "")
+                if event["event"] == "clarification":
+                    clarification_seen = True
+                    orchestrator.update_pending(conversation_id, {
+                        "intent": event.get("intent", "academic"),
+                        "tool": event.get("tool"),
+                        "missing_params": event.get("missing", []),
+                    })
+                if event["event"] == "done":
+                    event["latency_ms"] = int((time.perf_counter() - start) * 1000)
                 yield _sse(event)
+            if not clarification_seen:
+                orchestrator.update_pending(conversation_id, None)
         except Exception:
-            yield _sse({"event": "error", "message": "生成过程中出错，请重试", "retryable": True, "run_id": run_id})
-            yield _sse({"event": "done", "citations": [], "conversation_id": conversation_id, "run_id": run_id})
+            yield _sse({"event": "error", "message": "生成过程中出错，请重试", "retryable": True,
+                        "run_id": run_id, "latency_ms": int((time.perf_counter() - start) * 1000)})
+            yield _sse({"event": "done", "citations": [], "conversation_id": conversation_id,
+                        "run_id": run_id, "latency_ms": int((time.perf_counter() - start) * 1000)})
+            orchestrator.update_pending(conversation_id, None)
 
         s = SessionLocal()
         try:

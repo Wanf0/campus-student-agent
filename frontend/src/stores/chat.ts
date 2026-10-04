@@ -65,6 +65,7 @@ export function useChatStore() {
         break
       case 'done':
         msg.citations = ev.citations ?? []
+        if (ev.latency_ms != null) msg.latencyMs = ev.latency_ms
         if (ev.conversation_id != null) state.currentId = ev.conversation_id
         break
     }

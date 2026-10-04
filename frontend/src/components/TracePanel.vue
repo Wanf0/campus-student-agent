@@ -24,6 +24,7 @@ const open = ref(false)
         </ul>
       </div>
       <div v-if="message.evidence != null">检索证据：{{ message.evidence.length }} 条</div>
+      <div v-if="message.latencyMs != null">耗时：{{ message.latencyMs }} ms</div>
     </div>
   </div>
 </template>

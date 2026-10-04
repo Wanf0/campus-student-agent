@@ -29,8 +29,9 @@ describe('chat store applyEvent', () => {
     store.applyEvent(msg, { event: 'token', content: '你好' })
     expect(msg.content).toBe('你好')
 
-    store.applyEvent(msg, { event: 'done', citations: [{ title: 'x', authority: '校级' }] })
+    store.applyEvent(msg, { event: 'done', citations: [{ title: 'x', authority: '校级' }], latency_ms: 1234 })
     expect(msg.citations).toHaveLength(1)
+    expect(msg.latencyMs).toBe(1234)
   })
 
   it('空证据赋值为空数组', () => {

@@ -34,9 +34,15 @@ def _llm_classify(message: str) -> str:
     return "qa"
 
 
-def route(message: str) -> str:
-    """返回意图类别。确定性关键词优先，LLM 兜底。"""
+def route_keyword(message: str) -> str | None:
+    """纯关键词匹配，无 LLM 兜底。未命中返回 None。"""
     for intent, kws in KEYWORDS.items():
         if any(k in message for k in kws):
             return intent
-    return _llm_classify(message)
+    return None
+
+
+def route(message: str) -> str:
+    """返回意图类别。确定性关键词优先，LLM 兜底。"""
+    kw = route_keyword(message)
+    return kw if kw else _llm_classify(message)

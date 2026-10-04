@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { chatStore } from '../../stores/chat'
-import type { ChatMessage } from '../../types'
 import MessageBubble from '../../components/MessageBubble.vue'
 import EvidenceList from '../../components/EvidenceList.vue'
 import ToolStatus from '../../components/ToolStatus.vue'

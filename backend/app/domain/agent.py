@@ -39,6 +39,7 @@ TOOL_PROMPT = (
 # 确定性工具选择：根据关键词强制指定工具，避免 LLM 自行判断导致澄清路径不稳定
 ACADEMIC_TOOL_KEYWORDS = {
     "query_timetable": ["课表", "课程", "上课"],
+    "query_transcript": ["成绩单", "学籍"],
     "query_score": ["成绩", "绩点", "查分"],
     "query_exam": ["考试", "考场"],
 }
@@ -57,27 +58,46 @@ class CampusAgent:
 
     # ---- 同步入口（供 /chat 与评测） ----
 
-    def run(self, query: str, history: list[dict] | None = None) -> AgentOutput:
+    def run(self, query: str, history: list[dict] | None = None,
+            clarification: dict | None = None) -> AgentOutput:
         intent = router.route(query)
         answer = ""
         evidence: list[Evidence] = []
         citations: list[Citation] = []
-        for ev in self.run_stream(query, history):
+        clarification_out: dict | None = None
+        error_out: str | None = None
+        retryable_out: bool = False
+        for ev in self.run_stream(query, history, clarification=clarification):
             e = ev["event"]
             if e == "token":
                 answer += ev.get("content", "")
             elif e == "evidence":
                 evidence = [Evidence(**it) for it in ev.get("items", [])]
+            elif e == "clarification":
+                clarification_out = {"tool": ev.get("tool"), "intent": ev.get("intent"),
+                                     "missing_params": ev.get("missing", [])}
+            elif e == "error":
+                error_out = ev.get("message")
+                retryable_out = ev.get("retryable", False)
             elif e == "done":
                 citations = [Citation(**c) for c in ev.get("citations", [])]
-        return AgentOutput(answer=answer, evidence=evidence, citations=citations, intent=intent)
+        return AgentOutput(answer=answer, evidence=evidence, citations=citations,
+                           intent=intent, clarification=clarification_out,
+                           error=error_out, retryable=retryable_out)
 
     # ---- 流式入口：yield 事件 dict ----
 
-    def run_stream(self, query: str, history: list[dict] | None = None):
+    def run_stream(self, query: str, history: list[dict] | None = None,
+                   clarification: dict | None = None):
+        history = history or []
+        if clarification:
+            intent = clarification.get("intent", "academic")
+            yield {"event": "start", "intent": intent}
+            yield from self._stream_tool(query, history, force_tool=clarification.get("pending_tool"))
+            return
+
         intent = router.route(query)
         yield {"event": "start", "intent": intent}
-        history = history or []
         if intent == "qa":
             yield from self._stream_rag(query, history)
         elif intent == "academic":
@@ -142,18 +162,20 @@ class CampusAgent:
 
     # ---- 工具调用 ----
 
-    def _stream_tool(self, query: str, history: list[dict]):
+    def _stream_tool(self, query: str, history: list[dict], force_tool: str | None = None):
         yield {"event": "status", "phase": "tool_calling"}
         client = llm.get_client()
         messages = [{"role": "system", "content": TOOL_PROMPT}]
         messages.extend(history)
         messages.append({"role": "user", "content": query})
 
+        tool_choice = ({"type": "function", "function": {"name": force_tool}}
+                       if force_tool else self._tool_choice(query))
         resp = client.chat.completions.create(
             model=settings.deepseek_model,
             messages=messages,
             tools=self.registry.schemas(),
-            tool_choice=self._tool_choice(query),
+            tool_choice=tool_choice,
         )
         msg = resp.choices[0].message
 
@@ -178,14 +200,15 @@ class CampusAgent:
                 yield {"event": "tool_call", "tool": tc.function.name, "status": "missing_params",
                        "missing": result.missing_params}
                 question = "需要补充参数：" + "、".join(result.missing_params) + "（例如 A班 或 B班）"
-                yield {"event": "clarification", "missing": result.missing_params, "question": question}
+                yield {"event": "clarification", "missing": result.missing_params, "question": question,
+                       "tool": tc.function.name, "intent": "academic"}
                 yield {"event": "token", "content": question}
                 yield {"event": "done", "citations": []}
                 return
 
             if result.status == "error":
                 yield {"event": "tool_call", "tool": tc.function.name, "status": "error"}
-                yield {"event": "error", "message": "查询失败，请稍后重试", "retryable": True}
+                yield {"event": "error", "message": result.error_message or "查询失败，请稍后重试", "retryable": True}
                 yield {"event": "done", "citations": []}
                 return
 

@@ -11,6 +11,14 @@ class MissingParamsError(Exception):
         super().__init__(f"缺少参数: {params}")
 
 
+class UpstreamError(Exception):
+    """上游服务失败（用于演示 structured tool error / failure mode）。"""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+
 class Tool:
     """统一工具抽象。"""
 
@@ -37,6 +45,8 @@ class Tool:
             return ToolResult(status="ok", data=data)
         except MissingParamsError as e:
             return ToolResult(status="missing_params", missing_params=e.params)
+        except UpstreamError as e:
+            return ToolResult(status="error", error_message=e.message)
         except Exception as e:
             return ToolResult(status="error", error_message=str(e))
 

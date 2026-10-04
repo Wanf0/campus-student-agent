@@ -60,6 +60,7 @@ export interface SSEEvent {
   citations?: Citation[]
   run_id?: string
   conversation_id?: number
+  latency_ms?: number
 }
 
 export interface ChatMessage {
@@ -76,6 +77,7 @@ export interface ChatMessage {
   error?: string | null
   retryable?: boolean
   runId?: string
+  latencyMs?: number
 }
 
 export interface Conversation {

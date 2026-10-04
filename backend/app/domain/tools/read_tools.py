@@ -1,6 +1,6 @@
 """只读工具：教务查询（课表/成绩/考试，mock 数据）。"""
 
-from app.domain.tools.base import Tool, MissingParamsError
+from app.domain.tools.base import Tool, MissingParamsError, UpstreamError
 
 _MOCK_TIMETABLE_A = [
     {"时间": "周一 1-2 节", "课程": "软件工程", "地点": "教学楼A-101"},
@@ -44,6 +44,11 @@ def _exam(args: dict):
     return _MOCK_EXAM
 
 
+def _transcript(args: dict):
+    # 演示上游服务失败：模拟教务系统不可用
+    raise UpstreamError("教务系统暂时不可用，请稍后重试")
+
+
 def build_read_tools() -> list[Tool]:
     return [
         Tool("query_timetable", "查询指定班级的课程表（需提供 student_group：A班 或 B班）",
@@ -52,6 +57,10 @@ def build_read_tools() -> list[Tool]:
               "properties": {"student_group": {"type": "string", "description": "班级，A班 或 B班"}},
               "required": []},
              _timetable),
+        Tool("query_transcript", "查询成绩单（同步教务系统，可能暂时不可用）",
+             "read", "read_only",
+             {"type": "object", "properties": {}, "required": []},
+             _transcript),
         Tool("query_score", "查询学生的考试成绩", "read", "read_only",
              {"type": "object", "properties": {}, "required": []}, _score),
         Tool("query_exam", "查询考试安排", "read", "read_only",

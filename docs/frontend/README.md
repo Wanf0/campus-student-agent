@@ -59,6 +59,6 @@ npm run typecheck    # vue-tsc 类型检查
 
 - **Evidence / Citation 展示**：回答与证据分离，EvidenceCard 展示来源/权威/时间/版本/摘录，字段缺失优雅降级。
 - **Tool 状态**：基于真实 `tool_call` 事件显示"查询课表/成绩 + 成功/失败/缺参"，不暴露内部异常与路径。
-- **澄清**：`clarification` 事件触发，提供班级快捷选项（A/B）+ 自然语言输入。
-- **Trace/Debug**：每条助手消息可展开查看 run_id/意图/阶段/工具/证据数。
+- **澄清**：`clarification` 事件触发，提供班级快捷选项（A/B）+ 自然语言输入；后端维护 conversation-level pending state，短回复（如"A班"）自动续接。
+- **Trace/Debug**：每条助手消息可展开查看 run_id/意图/阶段/工具/证据数/耗时（latency_ms）。
 - **错误**：区分可重试/不可重试，重试按钮重发最后一条用户消息。
