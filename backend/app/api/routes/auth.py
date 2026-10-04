@@ -3,9 +3,9 @@ import hashlib
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..db import get_db
-from ..models import User
-from ..schemas import RegisterRequest, LoginRequest, AuthResponse
+from app.api.schemas import RegisterRequest, LoginRequest, AuthResponse
+from app.domain.models import User
+from app.infrastructure.db import get_db
 
 router = APIRouter(prefix="/auth", tags=["认证"])
 
@@ -19,12 +19,7 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
     exists = db.query(User).filter(User.username == req.username).first()
     if exists:
         raise HTTPException(status_code=400, detail="用户名已存在")
-    user = User(
-        username=req.username,
-        password=_hash(req.password),
-        name=req.name,
-        role="student",
-    )
+    user = User(username=req.username, password=_hash(req.password), name=req.name, role="student")
     db.add(user)
     db.commit()
     db.refresh(user)

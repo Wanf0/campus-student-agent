@@ -1,8 +1,6 @@
-"""重排序：使用交叉编码器对候选片段重排。"""
-
 from sentence_transformers import CrossEncoder
 
-from ..config import settings
+from app.config import settings
 
 _model = None
 _failed = False

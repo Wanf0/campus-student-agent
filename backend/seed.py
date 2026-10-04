@@ -8,9 +8,9 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from app.db import Base, engine, SessionLocal
-from app.knowledge import ingest_document
-from app.models import Document
+from app.infrastructure.db import Base, engine, SessionLocal
+from app.domain.knowledge import ingest_document
+from app.domain.models import Document
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 

@@ -1,6 +1,6 @@
 import chromadb
 
-from ..config import settings
+from app.config import settings
 
 _client = None
 _collection = None
@@ -24,8 +24,7 @@ def add_chunks(ids: list[str], documents: list[str], embeddings: list[list[float
 
 def query(query_embedding: list[float], n_results: int = 5) -> dict:
     col = get_collection()
-    res = col.query(query_embeddings=[query_embedding], n_results=n_results)
-    return res
+    return col.query(query_embeddings=[query_embedding], n_results=n_results)
 
 
 def delete_chunks(ids: list[str]):
@@ -33,3 +32,14 @@ def delete_chunks(ids: list[str]):
         return
     col = get_collection()
     col.delete(ids=ids)
+
+
+def all_chunks() -> tuple[list[str], list[str], list[dict]]:
+    """返回全部 (ids, documents, metadatas)，用于 BM25 索引与元数据索引构建。"""
+    col = get_collection()
+    data = col.get()
+    return (
+        data.get("ids") or [],
+        data.get("documents") or [],
+        data.get("metadatas") or [],
+    )

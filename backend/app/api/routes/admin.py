@@ -4,11 +4,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pypdf import PdfReader
 from sqlalchemy.orm import Session
 
-from ..db import get_db
-from ..knowledge import ingest_document
-from ..models import Document, Chunk
-from ..schemas import DocumentCreate, DocumentResponse
-from ..services import rag
+from app.api.schemas import DocumentCreate, DocumentResponse
+from app.domain.knowledge import ingest_document
+from app.domain.models import Document, Chunk
+from app.infrastructure import vectorstore
+from app.infrastructure.db import get_db
 
 router = APIRouter(prefix="/admin", tags=["管理"])
 
@@ -35,7 +35,16 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
 
 @router.post("/documents", response_model=DocumentResponse)
 def create_document(req: DocumentCreate, db: Session = Depends(get_db)):
-    doc_id = ingest_document(db, req.title, req.category, req.source, req.content)
+    doc_id = ingest_document(
+        db, req.title, req.category, req.source, req.content,
+        source_authority=req.source_authority,
+        publish_date=req.publish_date,
+        effective_from=req.effective_from,
+        effective_to=req.effective_to,
+        version=req.version,
+        department=req.department,
+        doc_type=req.doc_type,
+    )
     return DocumentResponse(id=doc_id, title=req.title, category=req.category, source=req.source)
 
 
@@ -53,7 +62,7 @@ def delete_document(doc_id: int, db: Session = Depends(get_db)):
     chunks = db.query(Chunk).filter(Chunk.document_id == doc_id).all()
     embedding_ids = [c.embedding_id for c in chunks if c.embedding_id]
     if embedding_ids:
-        rag.delete_chunks(embedding_ids)
+        vectorstore.delete_chunks(embedding_ids)
     db.delete(doc)
     db.commit()
     return {"deleted": doc_id, "chunks_removed": len(embedding_ids)}
